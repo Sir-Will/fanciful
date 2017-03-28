@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Represents a formattable message. Such messages can use elements such as colors, formatting codes, hover and click
@@ -64,6 +66,16 @@ public class FancyMessage implements JsonRepresentedObject, Cloneable, Iterable<
      */
     public FancyMessage() {
         this((TextualComponent) null);
+    }
+
+    public FancyMessage apply(Consumer<FancyMessage> consumer) {
+        consumer.accept(this);
+        return this;
+    }
+
+    public <T> FancyMessage apply(T t, BiConsumer<FancyMessage, T> consumer) {
+        consumer.accept(this, t);
+        return this;
     }
 
     /**
