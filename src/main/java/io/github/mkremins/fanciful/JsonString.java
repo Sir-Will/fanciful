@@ -12,7 +12,6 @@ import java.util.Map;
  * All writes merely write the represented string value.
  */
 final class JsonString implements JsonRepresentedObject {
-
     private String value;
 
     public JsonString(CharSequence value) {
@@ -22,6 +21,11 @@ final class JsonString implements JsonRepresentedObject {
     @Override
     public void writeJson(JsonWriter writer) throws IOException {
         writer.value(getValue());
+    }
+
+    @Override
+    public JsonRepresentedObject copy() {
+        return new JsonString(value);
     }
 
     public String getValue() {

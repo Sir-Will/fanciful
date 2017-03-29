@@ -14,7 +14,7 @@ import java.util.Map;
  * but also to represent localized strings and other text values.
  * <p>Different instances of this class can be created with static constructor methods.</p>
  */
-public abstract class TextualComponent implements Cloneable {
+public abstract class TextualComponent {
 
     static TextualComponent deserialize(Map<String, Object> map) {
         if (map.containsKey("key") && map.size() == 2 && map.containsKey("value")) {
@@ -125,8 +125,7 @@ public abstract class TextualComponent implements Cloneable {
      * Clones a textual component instance. The returned object should not reference this textual component instance,
      * but should maintain the same key and value.
      */
-    @Override
-    public abstract TextualComponent clone() throws CloneNotSupportedException;
+    public abstract TextualComponent copy();
 
     /**
      * Writes the text data represented by this textual component to the specified JSON writer object.
@@ -175,7 +174,7 @@ public abstract class TextualComponent implements Cloneable {
         }
 
         @Override
-        public TextualComponent clone() throws CloneNotSupportedException {
+        public TextualComponent copy() {
             // Since this is a private and final class, we can just reinstantiate this class instead of casting super.clone
             return new ArbitraryTextTypeComponent(getKey(), getValue());
         }
@@ -246,7 +245,7 @@ public abstract class TextualComponent implements Cloneable {
         }
 
         @Override
-        public TextualComponent clone() throws CloneNotSupportedException {
+        public TextualComponent copy() {
             // Since this is a private and final class, we can just reinstantiate this class instead of casting super.clone
             return new ComplexTextTypeComponent(getKey(), getValue());
         }

@@ -17,4 +17,6 @@ interface JsonRepresentedObject {
      */
     void writeJson(JsonWriter writer) throws IOException;
 
+    JsonRepresentedObject copy();
+
 }

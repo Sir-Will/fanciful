@@ -12,9 +12,8 @@ import java.util.Map;
 /**
  * Internal class: Represents a component of a JSON-serializable {@link FancyMessage}.
  */
-final class MessagePart implements JsonRepresentedObject, Cloneable {
+final class MessagePart implements JsonRepresentedObject {
     static final BiMap<ChatColor, String> STYLES_TO_NAMES;
-
     static {
         ImmutableBiMap.Builder<ChatColor, String> builder = ImmutableBiMap.builder();
         for (final ChatColor style : ChatColor.values()) {
@@ -40,6 +39,20 @@ final class MessagePart implements JsonRepresentedObject, Cloneable {
         STYLES_TO_NAMES = builder.build();
     }
 
+    @SuppressWarnings("unchecked")
+    public static MessagePart deserialize(Map<String, Object> serialized) {
+        MessagePart part = new MessagePart((TextualComponent) serialized.get("text"));
+        part.styles = (ArrayList<ChatColor>) serialized.get("styles");
+        part.color = ChatColor.getByChar(serialized.get("color").toString());
+        part.hoverActionName = (String) serialized.get("hoverActionName");
+        part.hoverActionData = (JsonRepresentedObject) serialized.get("hoverActionData");
+        part.clickActionName = (String) serialized.get("clickActionName");
+        part.clickActionData = (String) serialized.get("clickActionData");
+        part.insertionData = (String) serialized.get("insertion");
+        part.translationReplacements = (ArrayList<JsonRepresentedObject>) serialized.get("translationReplacements");
+        return part;
+    }
+
     ChatColor color = ChatColor.WHITE;
     ArrayList<ChatColor> styles = new ArrayList<>();
     String clickActionName = null, clickActionData = null, hoverActionName = null;
@@ -60,19 +73,18 @@ final class MessagePart implements JsonRepresentedObject, Cloneable {
         return text != null;
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public MessagePart clone() throws CloneNotSupportedException {
-        MessagePart obj = (MessagePart) super.clone();
-        obj.styles = (ArrayList<ChatColor>) styles.clone();
-        if (hoverActionData instanceof JsonString) {
-            obj.hoverActionData = new JsonString(((JsonString) hoverActionData).getValue());
-        } else if (hoverActionData instanceof FancyMessage) {
-            obj.hoverActionData = ((FancyMessage) hoverActionData).clone();
-        }
-        obj.translationReplacements = (ArrayList<JsonRepresentedObject>) translationReplacements.clone();
+    public MessagePart copy() {
+        MessagePart obj = new MessagePart();
+        obj.color = color;
+        obj.styles = new ArrayList<>(styles);
+        obj.clickActionName = clickActionName;
+        obj.clickActionData = clickActionData;
+        obj.hoverActionName = hoverActionName;
+        obj.hoverActionData = hoverActionData.copy();
+        obj.text = text.copy();
+        obj.insertionData = insertionData;
+        translationReplacements = new ArrayList<>(translationReplacements);
         return obj;
-
     }
 
     public void writeJson(JsonWriter json) {
@@ -109,8 +121,7 @@ final class MessagePart implements JsonRepresentedObject, Cloneable {
                 json.endArray();
             }
             json.endObject();
-        } catch (IOException ignored) {
-        }
+        } catch (IOException ignored) {}
     }
 
     public Map<String, Object> serialize() {
@@ -125,20 +136,6 @@ final class MessagePart implements JsonRepresentedObject, Cloneable {
         map.put("insertion", insertionData);
         map.put("translationReplacements", translationReplacements);
         return map;
-    }
-
-    @SuppressWarnings("unchecked")
-    public static MessagePart deserialize(Map<String, Object> serialized) {
-        MessagePart part = new MessagePart((TextualComponent) serialized.get("text"));
-        part.styles = (ArrayList<ChatColor>) serialized.get("styles");
-        part.color = ChatColor.getByChar(serialized.get("color").toString());
-        part.hoverActionName = (String) serialized.get("hoverActionName");
-        part.hoverActionData = (JsonRepresentedObject) serialized.get("hoverActionData");
-        part.clickActionName = (String) serialized.get("clickActionName");
-        part.clickActionData = (String) serialized.get("clickActionData");
-        part.insertionData = (String) serialized.get("insertion");
-        part.translationReplacements = (ArrayList<JsonRepresentedObject>) serialized.get("translationReplacements");
-        return part;
     }
 
 }
