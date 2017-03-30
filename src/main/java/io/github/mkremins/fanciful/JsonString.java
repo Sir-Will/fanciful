@@ -3,8 +3,6 @@ package io.github.mkremins.fanciful;
 import com.google.gson.stream.JsonWriter;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Represents a JSON string value.
@@ -32,19 +30,9 @@ final class JsonString implements JsonRepresentedObject {
         return value;
     }
 
-    public Map<String, Object> serialize() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("stringValue", value);
-        return map;
-    }
-
     @Override
     public String toString() {
         return value;
-    }
-
-    public static JsonString deserialize(Map<String, Object> map) {
-        return new JsonString(map.get("stringValue").toString());
     }
 
 }

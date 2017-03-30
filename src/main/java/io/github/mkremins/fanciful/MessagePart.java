@@ -6,8 +6,7 @@ import com.google.gson.stream.JsonWriter;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 /**
  * Internal class: Represents a component of a JSON-serializable {@link FancyMessage}.
@@ -39,29 +38,17 @@ final class MessagePart implements JsonRepresentedObject {
         STYLES_TO_NAMES = builder.build();
     }
 
-    @SuppressWarnings("unchecked")
-    public static MessagePart deserialize(Map<String, Object> serialized) {
-        MessagePart part = new MessagePart((TextualComponent) serialized.get("text"));
-        part.styles = (ArrayList<ChatColor>) serialized.get("styles");
-        part.color = ChatColor.getByChar(serialized.get("color").toString());
-        part.hoverActionName = (String) serialized.get("hoverActionName");
-        part.hoverActionData = (JsonRepresentedObject) serialized.get("hoverActionData");
-        part.clickActionName = (String) serialized.get("clickActionName");
-        part.clickActionData = (String) serialized.get("clickActionData");
-        part.insertionData = (String) serialized.get("insertion");
-        part.translationReplacements = (ArrayList<JsonRepresentedObject>) serialized.get("translationReplacements");
-        return part;
-    }
-
     ChatColor color = ChatColor.WHITE;
-    ArrayList<ChatColor> styles = new ArrayList<>();
-    String clickActionName = null, clickActionData = null, hoverActionName = null;
+    List<ChatColor> styles = new ArrayList<>();
+    String clickActionName = null;
+    String clickActionData = null;
+    String hoverActionName = null;
     JsonRepresentedObject hoverActionData = null;
     TextualComponent text = null;
     String insertionData = null;
-    ArrayList<JsonRepresentedObject> translationReplacements = new ArrayList<>();
+    List<JsonRepresentedObject> translationReplacements = new ArrayList<>();
 
-    MessagePart(final TextualComponent text) {
+    MessagePart(TextualComponent text) {
         this.text = text;
     }
 
@@ -122,20 +109,6 @@ final class MessagePart implements JsonRepresentedObject {
             }
             json.endObject();
         } catch (IOException ignored) {}
-    }
-
-    public Map<String, Object> serialize() {
-        HashMap<String, Object> map = new HashMap<String, Object>();
-        map.put("text", text);
-        map.put("styles", styles);
-        map.put("color", color.getChar());
-        map.put("hoverActionName", hoverActionName);
-        map.put("hoverActionData", hoverActionData);
-        map.put("clickActionName", clickActionName);
-        map.put("clickActionData", clickActionData);
-        map.put("insertion", insertionData);
-        map.put("translationReplacements", translationReplacements);
-        return map;
     }
 
 }

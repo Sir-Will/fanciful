@@ -33,47 +33,46 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
     private static final Pattern URL_PATTERN = Pattern.compile("^(?:(https?)://)?([-\\w_\\.]{2,}\\.[a-z]{2,4})(/\\S*)?$");
     private static final JsonParser STRING_PARSER = new JsonParser();
 
-    /**
-     * Deserializes a fancy message from its JSON representation. This JSON representation is of the format of
-     * that returned by {@link #toJSONString()}, and is compatible with vanilla inputs.
-     *
-     * @param json The JSON string which represents a fancy message.
-     * @return A {@link FancyMessage} representing the parameterized JSON message.
-     */
-    public static FancyMessage deserialize(String json) {
-        JsonObject serialized = STRING_PARSER.parse(json).getAsJsonObject();
-        JsonArray extra = serialized.getAsJsonArray("extra"); // Get the extra component
-        FancyMessage returnVal = new FancyMessage();
-        returnVal.messageParts.clear();
+    public static FancyMessage fromJson(String json) {
+        JsonObject data = STRING_PARSER.parse(json).getAsJsonObject();
+        JsonArray extra = data.getAsJsonArray("extra"); // Get the extra component
+
+        FancyMessage ret = new FancyMessage();
+        ret.messageParts.clear();
+
         for (JsonElement mPrt : extra) {
             MessagePart component = new MessagePart();
             JsonObject messagePart = mPrt.getAsJsonObject();
+
             for (Map.Entry<String, JsonElement> entry : messagePart.entrySet()) {
-                // Deserialize text
+
                 if (TextualComponent.isTextKey(entry.getKey())) {
                     // The map mimics the YAML serialization, which has a "key" field and one or more "value" fields
-                    Map<String, Object> serializedMapForm = new HashMap<String, Object>(); // Must be object due to Bukkit serializer API compliance
-                    serializedMapForm.put("key", entry.getKey());
+                    Map<String, String> map = new HashMap<>();
+                    map.put("key", entry.getKey());
+
                     if (entry.getValue().isJsonPrimitive()) {
-                        // Assume string
-                        serializedMapForm.put("value", entry.getValue().getAsString());
+                        map.put("value", entry.getValue().getAsString());
                     } else {
-                        // Composite object, but we assume each element is a string
-                        for (Map.Entry<String, JsonElement> compositeNestedElement : entry.getValue().getAsJsonObject().entrySet()) {
-                            serializedMapForm.put("value." + compositeNestedElement.getKey(), compositeNestedElement.getValue().getAsString());
+                        for (Map.Entry<String, JsonElement> e : entry.getValue().getAsJsonObject().entrySet()) {
+                            map.put("value." + e.getKey(), e.getValue().getAsString());
                         }
                     }
-                    component.text = TextualComponent.deserialize(serializedMapForm);
+                    component.text = TextualComponent.deserialize(map);
+
                 } else if (MessagePart.STYLES_TO_NAMES.inverse().containsKey(entry.getKey())) {
                     if (entry.getValue().getAsBoolean()) {
                         component.styles.add(MessagePart.STYLES_TO_NAMES.inverse().get(entry.getKey()));
                     }
+
                 } else if (entry.getKey().equals("color")) {
                     component.color = ChatColor.valueOf(entry.getValue().getAsString().toUpperCase());
+
                 } else if (entry.getKey().equals("clickEvent")) {
                     JsonObject object = entry.getValue().getAsJsonObject();
                     component.clickActionName = object.get("action").getAsString();
                     component.clickActionData = object.get("value").getAsString();
+
                 } else if (entry.getKey().equals("hoverEvent")) {
                     JsonObject object = entry.getValue().getAsJsonObject();
                     component.hoverActionName = object.get("action").getAsString();
@@ -84,10 +83,12 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
                         // Assume composite type
                         // The only composite type we currently store is another FancyMessage
                         // Therefore, recursion time!
-                        component.hoverActionData = deserialize(object.get("value").toString() /* This should properly serialize the JSON object as a JSON string */);
+                        component.hoverActionData = fromJson(object.get("value").toString() /* This should properly serialize the JSON object as a JSON string */);
                     }
+
                 } else if (entry.getKey().equals("insertion")) {
                     component.insertionData = entry.getValue().getAsString();
+
                 } else if (entry.getKey().equals("with")) {
                     for (JsonElement object : entry.getValue().getAsJsonArray()) {
                         if (object.isJsonPrimitive()) {
@@ -95,30 +96,14 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
                         } else {
                             // Only composite type stored in this array is - again - FancyMessages
                             // Recurse within this function to parse this as a translation replacement
-                            component.translationReplacements.add(deserialize(object.toString()));
+                            component.translationReplacements.add(fromJson(object.toString()));
                         }
                     }
                 }
             }
-            returnVal.messageParts.add(component);
+            ret.messageParts.add(component);
         }
-        return returnVal;
-    }
-
-    /**
-     * Deserializes a JSON-represented message from a mapping of key-value pairs.
-     * This is called by the Bukkit serialization API.
-     * It is not intended for direct public API consumption.
-     *
-     * @param serialized The key-value mapping which represents a fancy message.
-     */
-    @SuppressWarnings("unchecked")
-    public static FancyMessage deserialize(Map<String, Object> serialized) {
-        FancyMessage msg = new FancyMessage();
-        msg.messageParts = (List<MessagePart>) serialized.get("messageParts");
-        msg.jsonString = serialized.containsKey("JSON") ? serialized.get("JSON").toString() : null;
-        msg.dirty = !serialized.containsKey("JSON");
-        return msg;
+        return ret;
     }
 
     public static FancyMessage fromLegacyText(String message) {
@@ -128,7 +113,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
         Matcher matcher = URL_PATTERN.matcher( message );
 
         for (int i = 0; i < message.length(); i++) {
-            char c = message.charAt( i );
+            char c = message.charAt(i);
             if (c == ChatColor.COLOR_CHAR) {
                 i++;
                 c = message.charAt(i);
@@ -171,7 +156,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
             if (pos == -1) {
                 pos = message.length();
             }
-            if (matcher.region(i, pos).find()) { //Web link handling
+            if (matcher.region(i, pos).find()) { // Web link handling
                 if (builder.length() > 0) {
                     MessagePart old = component;
                     component = old.copy();
@@ -182,7 +167,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
 
                 MessagePart old = component;
                 component = old.copy();
-                String urlString = message.substring( i, pos );
+                String urlString = message.substring(i, pos);
                 component.text = TextualComponent.rawText(urlString);
 
                 component.clickActionName = "open_url";
@@ -289,7 +274,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @throws IllegalArgumentException If the specified {@code ChatColor} enumeration value is not a color (but a
      *                                  format value).
      */
-    public FancyMessage color(final ChatColor color) {
+    public FancyMessage color(ChatColor color) {
         if (!color.isColor()) {
             throw new IllegalArgumentException(color.name() + " is not a color");
         }
@@ -323,7 +308,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param path The path of the file on the client filesystem.
      * @return This builder instance.
      */
-    public FancyMessage file(final String path) {
+    public FancyMessage file(String path) {
         onClick("open_file", path);
         return this;
     }
@@ -335,7 +320,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param url The URL of the page to open when the link is clicked.
      * @return This builder instance.
      */
-    public FancyMessage link(final String url) {
+    public FancyMessage link(String url) {
         onClick("open_url", url);
         return this;
     }
@@ -349,7 +334,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param command The text to display in the chat bar of the client.
      * @return This builder instance.
      */
-    public FancyMessage suggest(final String command) {
+    public FancyMessage suggest(String command) {
         onClick("suggest_command", command);
         return this;
     }
@@ -363,7 +348,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param command The text to append to the chat bar of the client.
      * @return This builder instance.
      */
-    public FancyMessage insert(final String command) {
+    public FancyMessage insert(String command) {
         latest().insertionData = command;
         dirty = true;
         return this;
@@ -377,7 +362,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param command The text to display in the chat bar of the client.
      * @return This builder instance.
      */
-    public FancyMessage command(final String command) {
+    public FancyMessage command(String command) {
         onClick("run_command", command);
         return this;
     }
@@ -390,7 +375,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param name The name of the achievement to display, excluding the "achievement." prefix.
      * @return This builder instance.
      */
-    public FancyMessage achievementTooltip(final String name) {
+    public FancyMessage achievementTooltip(String name) {
         onHover("show_achievement", new JsonString("achievement." + name));
         return this;
     }
@@ -403,7 +388,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param text The text, which supports newlines, which will be displayed to the client upon hovering.
      * @return This builder instance.
      */
-    public FancyMessage tooltip(final String text) {
+    public FancyMessage tooltip(String text) {
         onHover("show_text", new JsonString(text));
         return this;
     }
@@ -417,7 +402,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      *              object will be the order in which the lines of the tooltip are created.
      * @return This builder instance.
      */
-    public FancyMessage tooltip(final Iterable<String> lines) {
+    public FancyMessage tooltip(Iterable<String> lines) {
         tooltip(ArrayWrapper.toArray(lines, String.class));
         return this;
     }
@@ -430,7 +415,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param lines The lines of text which will be displayed to the client upon hovering.
      * @return This builder instance.
      */
-    public FancyMessage tooltip(final String... lines) {
+    public FancyMessage tooltip(String... lines) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < lines.length; i++) {
             builder.append(lines[i]);
@@ -511,49 +496,6 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
     }
 
     /**
-     * If the text is a translatable key, and it has replaceable values, this function can be used to set the
-     * replacements that will be used in the message.
-     *
-     * @param replacements The replacements, in order, that will be used in the language-specific message.
-     * @return This builder instance.
-     */
-    public FancyMessage translationReplacements(final String... replacements) {
-        for (String str : replacements) {
-            latest().translationReplacements.add(new JsonString(str));
-        }
-
-        dirty = true;
-        return this;
-    }
-
-    /**
-     * If the text is a translatable key, and it has replaceable values, this function can be used to set the
-     * replacements that will be used in the message.
-     *
-     * @param replacements The replacements, in order, that will be used in the language-specific message.
-     * @return This builder instance.
-     */
-    public FancyMessage translationReplacements(final FancyMessage... replacements) {
-        for (FancyMessage str : replacements) {
-            latest().translationReplacements.add(str);
-        }
-
-        dirty = true;
-        return this;
-    }
-
-    /**
-     * If the text is a translatable key, and it has replaceable values, this function can be used to set the
-     * replacements that will be used in the message.
-     *
-     * @param replacements The replacements, in order, that will be used in the language-specific message.
-     * @return This builder instance.
-     */
-    public FancyMessage translationReplacements(final Iterable<FancyMessage> replacements) {
-        return translationReplacements(ArrayWrapper.toArray(replacements, FancyMessage.class));
-    }
-
-    /**
      * Terminate construction of the current editing component, and begin construction of a new message component. After
      * a successful call to this method, all setter methods will refer to a new message component, created as a result
      * of the call to this method.
@@ -561,7 +503,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param text The text which will populate the new message component.
      * @return This builder instance.
      */
-    public FancyMessage then(final String text) {
+    public FancyMessage then(String text) {
         return then(TextualComponent.rawText(text));
     }
 
@@ -573,7 +515,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
      * @param text The text which will populate the new message component.
      * @return This builder instance.
      */
-    public FancyMessage then(final TextualComponent text) {
+    public FancyMessage then(TextualComponent text) {
         if (!latest().hasText()) {
             throw new IllegalStateException("previous message part has no text");
         }
@@ -611,13 +553,7 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
         }
     }
 
-    /**
-     * Serialize this fancy message, converting it into syntactically-valid JSON using a {@link JsonWriter}.
-     * This JSON should be compatible with vanilla formatter commands such as {@code /tellraw}.
-     *
-     * @return The JSON string representing this object.
-     */
-    public String toJSONString() {
+    public String exportToJson() {
         if (!dirty && jsonString != null) {
             return jsonString;
         }
@@ -634,16 +570,6 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
         return jsonString;
     }
 
-    /**
-     * Convert this message to a human-readable string with limited formatting. This method is used to send this message
-     * to clients without JSON formatting support. <p> Serialization of this message by using this message will include
-     * (in this order for each message part): <ol> <li>The color of each message part.</li> <li>The applicable
-     * stylizations for each message part.</li> <li>The core text of the message part.</li> </ol> The primary omissions
-     * are tooltips and clickable actions. Consequently, this method should be used only as a last resort. </p> <p>
-     * Color and formatting can be removed from the returned string by using {@link ChatColor#stripColor(String)}.</p>
-     *
-     * @return A human-readable string representing limited formatting in addition to the core text of this message.
-     */
     public String toOldMessageFormat() {
         StringBuilder result = new StringBuilder();
         for (MessagePart part : this) {
@@ -672,13 +598,6 @@ public class FancyMessage implements JsonRepresentedObject, Iterable<MessagePart
         latest.hoverActionName = name;
         latest.hoverActionData = data;
         dirty = true;
-    }
-
-    // Doc copied from interface
-    public Map<String, Object> serialize() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("messageParts", messageParts);
-        return map;
     }
 
     /**

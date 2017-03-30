@@ -15,8 +15,7 @@ import java.util.Map;
  * <p>Different instances of this class can be created with static constructor methods.</p>
  */
 public abstract class TextualComponent {
-
-    static TextualComponent deserialize(Map<String, Object> map) {
+    static TextualComponent deserialize(Map<String, String> map) {
         if (map.containsKey("key") && map.size() == 2 && map.containsKey("value")) {
             // Arbitrary text component
             return ArbitraryTextTypeComponent.deserialize(map);
@@ -33,7 +32,7 @@ public abstract class TextualComponent {
     }
 
     static boolean isTranslatableText(TextualComponent component) {
-        return component instanceof ComplexTextTypeComponent && ((ComplexTextTypeComponent) component).getKey().equals("translate");
+        return component instanceof ComplexTextTypeComponent && component.getKey().equals("translate");
     }
 
     /**
@@ -141,9 +140,8 @@ public abstract class TextualComponent {
      * Exception validating done is on keys and values.
      */
     private static final class ArbitraryTextTypeComponent extends TextualComponent {
-
-        public static ArbitraryTextTypeComponent deserialize(Map<String, Object> map) {
-            return new ArbitraryTextTypeComponent(map.get("key").toString(), map.get("value").toString());
+        public static ArbitraryTextTypeComponent deserialize(Map<String, String> map) {
+            return new ArbitraryTextTypeComponent(map.get("key"), map.get("value"));
         }
 
         private String key;
@@ -175,21 +173,12 @@ public abstract class TextualComponent {
 
         @Override
         public TextualComponent copy() {
-            // Since this is a private and final class, we can just reinstantiate this class instead of casting super.clone
             return new ArbitraryTextTypeComponent(getKey(), getValue());
         }
 
         @Override
         public void writeJson(JsonWriter writer) throws IOException {
             writer.name(getKey()).value(getValue());
-        }
-
-        @SuppressWarnings("serial")
-        public Map<String, Object> serialize() {
-            return new HashMap<String, Object>() {{
-                put("key", getKey());
-                put("value", getValue());
-            }};
         }
 
         @Override
@@ -203,22 +192,22 @@ public abstract class TextualComponent {
      * Exception validating done is on keys and values.
      */
     private static final class ComplexTextTypeComponent extends TextualComponent {
-
-        public static ComplexTextTypeComponent deserialize(Map<String, Object> map) {
+        public static ComplexTextTypeComponent deserialize(Map<String, String> map) {
             String key = null;
-            Map<String, String> value = new HashMap<String, String>();
-            for (Map.Entry<String, Object> valEntry : map.entrySet()) {
+            Map<String, String> values = new HashMap<String, String>();
+            for (Map.Entry<String, String> valEntry : map.entrySet()) {
                 if (valEntry.getKey().equals("key")) {
-                    key = (String) valEntry.getValue();
+                    key = valEntry.getValue();
                 } else if (valEntry.getKey().startsWith("value.")) {
-                    value.put(((String) valEntry.getKey()).substring(6) /* Strips out the value prefix */, valEntry.getValue().toString());
+                    // Strips out the value prefix
+                    values.put(valEntry.getKey().substring(6), valEntry.getValue());
                 }
             }
-            return new ComplexTextTypeComponent(key, value);
+            return new ComplexTextTypeComponent(key, values);
         }
 
-        private String _key;
-        private Map<String, String> _value;
+        private String key;
+        private Map<String, String> value;
 
         public ComplexTextTypeComponent(String key, Map<String, String> values) {
             setKey(key);
@@ -227,26 +216,25 @@ public abstract class TextualComponent {
 
         @Override
         public String getKey() {
-            return _key;
+            return key;
         }
 
         public void setKey(String key) {
             Preconditions.checkArgument(key != null && !key.isEmpty(), "The key must be specified.");
-            _key = key;
+            this.key = key;
         }
 
         public Map<String, String> getValue() {
-            return _value;
+            return value;
         }
 
         public void setValue(Map<String, String> value) {
             Preconditions.checkArgument(value != null, "The value must be specified.");
-            _value = value;
+            this.value = value;
         }
 
         @Override
         public TextualComponent copy() {
-            // Since this is a private and final class, we can just reinstantiate this class instead of casting super.clone
             return new ComplexTextTypeComponent(getKey(), getValue());
         }
 
@@ -254,20 +242,10 @@ public abstract class TextualComponent {
         public void writeJson(JsonWriter writer) throws IOException {
             writer.name(getKey());
             writer.beginObject();
-            for (Map.Entry<String, String> jsonPair : _value.entrySet()) {
+            for (Map.Entry<String, String> jsonPair : value.entrySet()) {
                 writer.name(jsonPair.getKey()).value(jsonPair.getValue());
             }
             writer.endObject();
-        }
-
-        @SuppressWarnings("serial")
-        public Map<String, Object> serialize() {
-            return new java.util.HashMap<String, Object>() {{
-                put("key", getKey());
-                for (Map.Entry<String, String> valEntry : getValue().entrySet()) {
-                    put("value." + valEntry.getKey(), valEntry.getValue());
-                }
-            }};
         }
 
         @Override
